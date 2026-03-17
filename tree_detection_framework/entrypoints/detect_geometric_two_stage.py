@@ -15,7 +15,6 @@ from tree_detection_framework.preprocessing.preprocessing import (
     create_dataloader,
     create_intersection_dataloader,
 )
-from tree_detection_framework.preprocessing.utils import create_guassian_blur_transform
 
 CHIP_SIZE = 2000
 CHIP_STRIDE = 1900
@@ -56,19 +55,6 @@ def detect_trees_two_stage(
             Keyword arguments to pass to the crown segmentation approach. Defaults to {}.
     """
     # Stage 1: Create a dataloader for the raster data and detect the tree-tops
-
-    if raster_blur_sigma is not None and raster_blur_sigma != 0:
-        # Add a blurring operation to avoid spurious tree top detections
-        # Compute the kernel sigma in pixels
-        kernel_sigma_pixels = raster_blur_sigma / resolution
-
-        # Create the gaussian blur transform object
-        raster_transform = create_guassian_blur_transform(
-            kernel_sigma_pixels=kernel_sigma_pixels
-        )
-    else:
-        raster_transform = None
-
     # TODO, consider a larger window for tree detection to reduce boundary artificts, while still
     # keeping the watershed step fast. Counterpoint: in large rasters, the NMS step becomes extremely
     # expensive and the bottleneck, so additional duplicated regions may further slow that step.
@@ -77,12 +63,13 @@ def detect_trees_two_stage(
         chip_size=chip_size,
         chip_stride=chip_stride,
         resolution=resolution,
-        raster_transforms=raster_transform,
     )
 
     # Create the detector for variable window maximum detection
     treetop_detector = GeometricTreeTopDetector(
-        confidence_feature="distance", **tree_top_detector_kwargs
+        confidence_feature="distance",
+        raster_blur_sigma=raster_blur_sigma,
+        **tree_top_detector_kwargs,
     )
 
     # Generate tree top predictions
