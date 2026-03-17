@@ -68,7 +68,7 @@ def detect_trees_two_stage(
     # Create the detector for variable window maximum detection
     treetop_detector = GeometricTreeTopDetector(
         confidence_feature="distance",
-        raster_blur_sigma=raster_blur_sigma,
+        blur_sigma=raster_blur_sigma,
         **tree_top_detector_kwargs,
     )
 
