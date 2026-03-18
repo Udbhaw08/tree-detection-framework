@@ -61,6 +61,8 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+import warnings
+warnings.filterwarnings("ignore", message=".*nodata.*shadowing.*")
 
 class Detector:
     def __init__(self, postprocessors=None):
