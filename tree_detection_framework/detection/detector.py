@@ -25,6 +25,7 @@ from shapely.geometry import (
     shape,
 )
 from shapely.geometry.base import BaseGeometry
+from skimage.filters import gaussian
 from skimage.segmentation import watershed
 from torch.utils.data import DataLoader
 from torchgeo.datasets import IntersectionDataset
@@ -484,6 +485,7 @@ class GeometricTreeTopDetector(Detector):
         c: float = 0.25,
         min_ht: int = 5,
         filter_shape: str = "circle",
+        blur_sigma: float = 0,
         confidence_feature: str = "distance",
         postprocessors=None,
     ):
@@ -495,6 +497,7 @@ class GeometricTreeTopDetector(Detector):
            min_ht (int, optional): Minimum height for a pixel to be considered as a tree. Defaults to 5.
            filter_shape (str, optional): Shape of the filter to use for local maxima detection.
                Choose from "circle", "square", "none". Defaults to "circle". Defaults to "circle".
+           blur_sigma (float, optional): Standard deviation of the 2D Gaussian smoothing kernel.
            confidence_feature (str, optional): Feature to use to compute the confidence scores for the predictions.
                 Choose "height" or "distance". Defaults to "distance".
            postprocessors (list, optional):
@@ -506,6 +509,7 @@ class GeometricTreeTopDetector(Detector):
         self.c = c
         self.min_ht = min_ht
         self.filter_shape = filter_shape
+        self.blur_sigma = blur_sigma
         self.confidence_feature = confidence_feature
 
     def get_treetops(self, image: np.ndarray) -> tuple[List[Point], List[float]]:
@@ -528,6 +532,19 @@ class GeometricTreeTopDetector(Detector):
 
         # Determine filter size in pixels
         min_radius_pixels = int(np.floor(min_radius / self.data_resolution))
+
+        # Blur the chip if needed
+        if self.blur_sigma != 0.0:
+            # Retain the original to query the heights
+            unsmoothed_image = image.copy()
+            # Smooth the image with a 2D gaussian blur
+            image = gaussian(
+                image, sigma=self.blur_sigma / self.data_resolution, preserve_range=True
+            )
+        else:
+            # Image is unchanged since there is no blurring. And the unsmoothed image is not
+            # actually copied, it's the same object.
+            unsmoothed_image = image
 
         if self.filter_shape == "circle":
             # Create a circular footprint
@@ -599,7 +616,10 @@ class GeometricTreeTopDetector(Detector):
             # Check if the pixel has the max height within the neighborhood
             if ht == np.max(neighborhood):
                 all_treetop_pixel_coords.append(Point(j, i))
-                all_treetop_heights.append(ht)
+                # The height is computed using the un-smoothed CHM since the smoothing will
+                # underestimate the true height.
+                unsmoothed_height = unsmoothed_image[i, j]
+                all_treetop_heights.append(unsmoothed_height)
 
         return all_treetop_pixel_coords, all_treetop_heights
 
@@ -1049,6 +1069,7 @@ class GeometricDetector(GeometricTreeTopDetector, GeometricTreeCrownDetector):
         b: float = 0.0325,
         c: float = 0.25,
         min_ht: int = 5,
+        blur_sigma: float = 0.0,
         approach: str = "watershed",
         radius_factor: float = 0.6,
         threshold_factor: float = 0.3,
@@ -1069,6 +1090,7 @@ class GeometricDetector(GeometricTreeTopDetector, GeometricTreeCrownDetector):
             b=b,
             c=c,
             min_ht=min_ht,
+            blur_sigma=blur_sigma,
             filter_shape=filter_shape,
         )
         GeometricTreeCrownDetector.__init__(
