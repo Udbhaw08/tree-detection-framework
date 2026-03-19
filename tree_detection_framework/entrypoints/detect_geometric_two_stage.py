@@ -124,10 +124,12 @@ def detect_trees_two_stage(
     # Convert to the geodataframe representation
     treetop_detections_gdf = treetop_detections.get_data_frame(merge=True)
 
+    # If requested, suppress the trees detected at the boundary of the raster. These can often be
+    # low-quality and represent the "shoulder" of trees which are partly outside the raster.
     if edge_suppression_meters is not None and edge_suppression_meters != 0:
         # Determine the extent of the valid raster
         valid_raster_region = get_valid_raster_region(CHM_file)
-        # Construct the new valid region eroded from the edge
+        # Construct the new valid region eroded from the edge by the requested amount
         valid_raster_region.geometry = valid_raster_region.buffer(
             -edge_suppression_meters
         )
@@ -208,7 +210,7 @@ def parse_args():
     parser.add_argument(
         "--edge-suppression-meters",
         type=float,
-        help="Suppress all trees with treetops within this this distance of the edge of the raster.",
+        help="Suppress all trees with treetops within this distance of the edge of the raster.",
     )
     parser.add_argument(
         "--tree-top-detector-kwargs",
