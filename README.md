@@ -31,6 +31,12 @@ TDF currently supports the following tree detection/segmentation algorithms.
 - Utilizes the Segment Anything Model (SAM 2.1 Hiera Large) checkpoint with tuned parameters for mask generation optimized for tree crown delineation.
 - Does not rely on supervised training for tree-specific data but generalizes well due to SAM's zero-shot nature; however, non-tree objects are also detected and included in predictions.
 
+### Segment Anything Model 3 (SAM3)
+- [GitHub](https://github.com/facebookresearch/sam3)
+- Uses RGB input data. Predicts objects with polygon boundaries.
+- Utilizes the SAM3 checkpoint using text prompt "tree" for tree crown delineation.
+- Does not rely on supervised training for tree-specific data but generalizes well due to SAM's zero-shot nature. Unlike SAM2, non-tree objects are not usually detected or included in predictions.
+
 ### Geometric Detector
 - Implementation of the variable window filter algorithm of [Popescu and Wynne
   (2004)](https://www.ingentaconnect.com/content/asprs/pers/2004/00000070/00000005/art00003) for
@@ -109,6 +115,28 @@ And move into this repo
 ```
 mv checkpoints ../tree-detection-framework 
 ```
+
+**SAM3:**
+Clone the SAM3 repository and install the dependencies
+```
+git clone https://github.com/facebookresearch/sam3.git && cd sam3
+
+pip install -e .
+```
+NOTE: `numpy` may be downgraded during installation due to dependency constraints. This is expected and does not impact other functionality in TDF.
+
+Next, install the missing package 'decord'
+```
+pip install decord
+```
+To download the model checkpoint, you will need to login to HuggingFace and request model access from the [SAM3 repo](https://huggingface.co/facebook/sam3). Once the access has been granted (usually within a couple minutes), follow these steps:
+- Go to: https://huggingface.co/settings/tokens
+- Select "New token"
+- Select Token type "Read"
+- Enter token name and create token. Copy and store the token somewhere (you won't see it again).
+
+Follow steps in `tree-detection-framework/examples/predict_detections_sam3.ipynb` to understand how to use SAM3. Replace `HUGGING_FACE_TOKEN` with your access token created from HuggingFace.
+
 
 ## Docker
 An alternative approach to a local installation is using the pre-built docker image. At this point, this image only supports the dependencies for the DeepForest and geometric detectors. The [packages](david-paired-photogrammetry/default-run) tab of the repository provides the command to pull the image.
