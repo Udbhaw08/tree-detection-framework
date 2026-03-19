@@ -615,11 +615,13 @@ class GeometricTreeTopDetector(Detector):
 
             # Check if the pixel has the max height within the neighborhood
             if ht == np.max(neighborhood):
-                all_treetop_pixel_coords.append(Point(j, i))
-                # The height is computed using the un-smoothed CHM since the smoothing will
-                # underestimate the true height.
                 unsmoothed_height = unsmoothed_image[i, j]
-                all_treetop_heights.append(unsmoothed_height)
+                # Ensure that the unsmoothed height is also above the minimum
+                if unsmoothed_height > self.min_ht:
+                    all_treetop_pixel_coords.append(Point(j, i))
+                    # The height is computed using the un-smoothed CHM since the smoothing will
+                    # underestimate the true height.
+                    all_treetop_heights.append(unsmoothed_height)
 
         return all_treetop_pixel_coords, all_treetop_heights
 
