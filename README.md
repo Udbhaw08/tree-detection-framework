@@ -129,9 +129,9 @@ Next, install the missing package 'decord'
 ```
 pip install decord
 ```
-To download the model checkpoint, you will need to login to HuggingFace and request model access from the [SAM3 repo](https://huggingface.co/facebook/sam3). Once the access has been granted (usually within a couple minutes), follow these steps:
+To download the model checkpoint, you will need to login to HuggingFace and request model access from the [SAM3 repo](https://huggingface.co/facebook/sam3). Once the access has been granted to your account (usually within a couple minutes), follow these steps:
 - Go to: https://huggingface.co/settings/tokens
-- Select "New token"
+- Select "Create new token"
 - Select Token type "Read"
 - Enter token name and create token. Copy and store the token somewhere (you won't see it again).
 
