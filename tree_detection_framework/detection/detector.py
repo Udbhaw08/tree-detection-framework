@@ -534,7 +534,7 @@ class GeometricTreeTopDetector(Detector):
         min_radius_pixels = int(np.floor(min_radius / self.data_resolution))
 
         # Blur the chip if needed
-        if self.blur_sigma != 0.0:
+        if self.blur_sigma is not None and self.blur_sigma != 0.0:
             # Retain the original to query the heights
             unsmoothed_image = image.copy()
             # Smooth the image with a 2D gaussian blur
