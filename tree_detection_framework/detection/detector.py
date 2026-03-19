@@ -591,7 +591,8 @@ class GeometricTreeTopDetector(Detector):
 
             # Calculate the radius based on the pixel height
             radius = (self.a * (ht**2)) + (self.b * ht) + self.c
-            radius_pixels = radius / self.data_resolution
+            # Ensure the radius is at least 1 pixel
+            radius_pixels = max(radius / self.data_resolution, 1)
             side = int(np.ceil(radius_pixels))
 
             # Define bounds for the neighborhood
