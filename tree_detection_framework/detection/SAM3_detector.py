@@ -74,6 +74,7 @@ class SAM3Detector(Detector):
         token = huggingface_token or os.environ.get("HF_TOKEN")
         if token:
             from huggingface_hub import login
+
             login(token=token)
         else:
             logging.info(
@@ -133,22 +134,24 @@ class SAM3Detector(Detector):
         all_data_dicts = []
 
         for inference_state in batch_preds:
-            masks = inference_state["masks"]    # list of (H, W) arrays
+            masks = inference_state["masks"]  # list of (H, W) arrays
             scores = inference_state["scores"]  # list of floats
-            
+
             shapely_objects = []
             kept_scores = []
             bounding_boxes = []
 
             for mask, score in zip(masks, scores):
                 # Convert masks to shapely polygons
-                shapely_mask = mask_to_shapely(mask.squeeze().cpu().numpy().astype(float))
+                shapely_mask = mask_to_shapely(
+                    mask.squeeze().cpu().numpy().astype(float)
+                )
 
                 if shapely_mask is None or shapely_mask.is_empty:
                     continue
 
                 shapely_objects.append(shapely_mask)
-                kept_scores.append(score.item() if hasattr(score, 'item') else score)
+                kept_scores.append(score.item() if hasattr(score, "item") else score)
                 bounding_boxes.append(box(*shapely_mask.bounds))
 
             all_geometries.append(shapely_objects)

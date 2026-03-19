@@ -65,6 +65,7 @@ import warnings
 
 warnings.filterwarnings("ignore", message=".*nodata.*shadowing.*")
 
+
 class Detector:
     def __init__(self, postprocessors=None):
         """
