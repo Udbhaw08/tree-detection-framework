@@ -62,6 +62,7 @@ logging.basicConfig(
 )
 
 import warnings
+
 warnings.filterwarnings("ignore", message=".*nodata.*shadowing.*")
 
 class Detector:
