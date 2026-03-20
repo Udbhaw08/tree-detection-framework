@@ -38,7 +38,7 @@ class SAM3Detector(Detector):
         device=DEFAULT_DEVICE,
         bpe_path=_SAM3_DEFAULT_BPE_PATH,
         text_prompt="tree",
-        confidence_threshold=0.4,
+        confidence_threshold=0.3,
         huggingface_token=None,
         postprocessors=None,
     ):
@@ -53,7 +53,7 @@ class SAM3Detector(Detector):
             text_prompt (str): Text prompt used to guide SAM3 segmentation.
                 Defaults to "tree".
             confidence_threshold (float): Minimum confidence score for keeping a
-                predicted mask. Defaults to 0.4.
+                predicted mask. Defaults to 0.3.
             huggingface_token (str, optional): HuggingFace API token for downloading
                 SAM3 model weights. Can also be set via the HF_TOKEN environment
                 variable. If neither is provided, assumes weights are already cached.
@@ -108,15 +108,15 @@ class SAM3Detector(Detector):
             if original_image.shape[0] < 3:
                 raise ValueError("Image has fewer than 3 channels.")
 
-            # Convert tensor (C, H, W) -> PIL RGB image
-            image_np = original_image.permute(1, 2, 0)
-            if image_np.max() <= 1.0:
-                image_np = (image_np * 255).byte()
-            image_np = image_np.cpu().numpy()[:, :, :3]
-            pil_image = Image.fromarray(image_np.astype(np.uint8))
+            # Convert tensor (C, H, W) to uint8, slicing to 3 channels for RGB
+            image = original_image[:3]  # drop alpha if present
+            if image.max() <= 1.0:
+                image = (image * 255).byte()
+            else:
+                image = image.byte()
 
             # Run SAM3 with text prompt
-            inference_state = self.processor.set_image(pil_image)
+            inference_state = self.processor.set_image(image)
             self.processor.reset_all_prompts(inference_state)
             inference_state = self.processor.set_text_prompt(
                 state=inference_state, prompt=self.text_prompt
