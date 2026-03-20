@@ -538,7 +538,7 @@ class GeometricTreeTopDetector(Detector):
         min_radius_pixels = int(np.floor(min_radius / self.data_resolution))
 
         # Blur the chip if needed
-        if self.blur_sigma != 0.0:
+        if self.blur_sigma is not None and self.blur_sigma != 0.0:
             # Retain the original to query the heights
             unsmoothed_image = image.copy()
             # Smooth the image with a 2D gaussian blur
@@ -595,7 +595,8 @@ class GeometricTreeTopDetector(Detector):
 
             # Calculate the radius based on the pixel height
             radius = (self.a * (ht**2)) + (self.b * ht) + self.c
-            radius_pixels = radius / self.data_resolution
+            # Ensure the radius is at least 1 pixel
+            radius_pixels = max(radius / self.data_resolution, 1)
             side = int(np.ceil(radius_pixels))
 
             # Define bounds for the neighborhood
@@ -619,11 +620,13 @@ class GeometricTreeTopDetector(Detector):
 
             # Check if the pixel has the max height within the neighborhood
             if ht == np.max(neighborhood):
-                all_treetop_pixel_coords.append(Point(j, i))
-                # The height is computed using the un-smoothed CHM since the smoothing will
-                # underestimate the true height.
                 unsmoothed_height = unsmoothed_image[i, j]
-                all_treetop_heights.append(unsmoothed_height)
+                # Ensure that the unsmoothed height is also above the minimum
+                if unsmoothed_height > self.min_ht:
+                    all_treetop_pixel_coords.append(Point(j, i))
+                    # The height is computed using the un-smoothed CHM since the smoothing will
+                    # underestimate the true height.
+                    all_treetop_heights.append(unsmoothed_height)
 
         return all_treetop_pixel_coords, all_treetop_heights
 

@@ -7,6 +7,7 @@ import numpy as np
 import pyproj
 import rasterio
 import rasterio as rio
+import rasterio.features
 import rasterio.plot
 from rasterio.warp import Resampling, calculate_default_transform, reproject
 
@@ -221,3 +222,38 @@ def get_heights_from_chm(
         )
 
     return heights
+
+
+def get_valid_raster_region(raster_file: PATH_TYPE) -> gpd.GeoDataFrame:
+    """Compute a single-row geodataframe representing the extent of the valid pixels of a raster
+
+    Args:
+        raster_file (PATH_TYPE): Path to the raster
+
+    Returns:
+        gpd.GeoDataFrame: valid region
+    """
+    with rasterio.open(raster_file) as src:
+        image = src.read(1)
+
+    # Define the valid mask
+    mask = np.logical_and(np.isfinite(image), image != src.nodata)
+
+    # The mask is the important part here, the input "image" is all zeros
+    # Get the geometry of each disconnected component. Since we don't care about the value, it is
+    # recorded.
+    geoms = list(
+        {"properties": {}, "geometry": s}
+        for (s, v) in rasterio.features.shapes(
+            np.zeros_like(mask, dtype=np.uint8),
+            mask=mask,
+            transform=src.transform,
+        )
+    )
+
+    # Convert to Geodataframe with only a geometry column
+    bounds_gdf = gpd.GeoDataFrame.from_features(geoms, crs=src.crs)
+    # Ensure there's only one row
+    bounds_gdf = bounds_gdf.dissolve()
+
+    return bounds_gdf

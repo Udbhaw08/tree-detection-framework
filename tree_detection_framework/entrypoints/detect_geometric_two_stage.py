@@ -15,6 +15,7 @@ from tree_detection_framework.preprocessing.preprocessing import (
     create_dataloader,
     create_intersection_dataloader,
 )
+from tree_detection_framework.utils.raster import get_valid_raster_region
 
 CHIP_SIZE = 2000
 CHIP_STRIDE = 1900
@@ -29,6 +30,7 @@ def detect_trees_two_stage(
     chip_stride: int = CHIP_STRIDE,
     resolution: float = RESOLUTION,
     raster_blur_sigma: Optional[float] = None,
+    edge_suppression_meters: Optional[float] = None,
     tree_top_detector_kwargs: dict = {},
     crown_segmentation_kwargs: dict = {},
 ):
@@ -54,6 +56,7 @@ def detect_trees_two_stage(
         crown_segmentation_kwargs (dict, optional):
             Keyword arguments to pass to the crown segmentation approach. Defaults to {}.
     """
+
     # Stage 1: Create a dataloader for the raster data and detect the tree-tops
     # TODO, consider a larger window for tree detection to reduce boundary artificts, while still
     # keeping the watershed step fast. Counterpoint: in large rasters, the NMS step becomes extremely
@@ -91,41 +94,73 @@ def detect_trees_two_stage(
         suppression_distance=suppression_distance,
     )
 
+    # Detect tree crowns if requested
+    if tree_crowns_save_path is not None:
+        # Stage 2: Combine raster and vector data (from the tree-top detector) to create a new dataloader
+        raster_vector_dataloader = create_intersection_dataloader(
+            raster_data=CHM_file,
+            vector_data=treetop_detections,
+            chip_size=chip_size,
+            chip_stride=chip_stride,
+            resolution=resolution,
+        )
+
+        # Create the crown detector, which is seeded by the tree top points detected in the last step
+        # The score metric is how far from the edge the detection is, which prioritizes central detections
+        treecrown_detector = GeometricTreeCrownDetector(
+            confidence_feature="distance", **crown_segmentation_kwargs
+        )
+
+        # Predict the crowns
+        treecrown_detections = treecrown_detector.predict(raster_vector_dataloader)
+        # Suppress overlapping crown predictions. This step can be slow.
+        treecrown_detections = multi_region_NMS(
+            treecrown_detections,
+            confidence_column="score",
+            intersection_method="IOS",
+            run_per_region_NMS=False,
+        )
+
+    # Convert to the geodataframe representation
+    treetop_detections_gdf = treetop_detections.get_data_frame(merge=True)
+
+    # If requested, suppress the trees detected at the boundary of the raster. These can often be
+    # low-quality and represent the "shoulder" of trees which are partly outside the raster.
+    if edge_suppression_meters is not None and edge_suppression_meters != 0:
+        # Determine the extent of the valid raster
+        valid_raster_region = get_valid_raster_region(CHM_file)
+        # Construct the new valid region eroded from the edge by the requested amount
+        valid_raster_region.geometry = valid_raster_region.buffer(
+            -edge_suppression_meters
+        )
+        # Make sure the CRS matches
+        valid_raster_region.to_crs(treetop_detections_gdf.crs, inplace=True)
+
+        # Subset tree tops to this valid region
+        treetop_detections_gdf = treetop_detections_gdf[
+            treetop_detections_gdf.within(valid_raster_region.geometry.values[0])
+        ]
+
     # Save the tree tops
     tree_tops_save_path.parent.mkdir(parents=True, exist_ok=True)
-    treetop_detections.save(tree_tops_save_path)
+    treetop_detections_gdf.to_file(tree_tops_save_path)
 
-    # Break early if no tree crowns are requested
-    if tree_crowns_save_path is None:
-        return
+    if tree_crowns_save_path is not None:
+        # Convert to geodataframe representation
+        treecrown_detections_gdf = treecrown_detections.get_data_frame()
 
-    # Stage 2: Combine raster and vector data (from the tree-top detector) to create a new dataloader
-    raster_vector_dataloader = create_intersection_dataloader(
-        raster_data=CHM_file,
-        vector_data=treetop_detections,
-        chip_size=chip_size,
-        chip_stride=chip_stride,
-        resolution=resolution,
-    )
+        # Drop the crowns corresponding to trees detected at the edge by ensuring crowns correspond
+        # to a tree top which was kept
+        if edge_suppression_meters is not None and edge_suppression_meters != 0:
+            treecrown_detections_gdf = treecrown_detections_gdf[
+                treecrown_detections_gdf.treetop_unique_ID.isin(
+                    treetop_detections_gdf.unique_ID
+                )
+            ]
 
-    # Create the crown detector, which is seeded by the tree top points detected in the last step
-    # The score metric is how far from the edge the detection is, which prioritizes central detections
-    treecrown_detector = GeometricTreeCrownDetector(
-        confidence_feature="distance", **crown_segmentation_kwargs
-    )
-
-    # Predict the crowns
-    treecrown_detections = treecrown_detector.predict(raster_vector_dataloader)
-    # Suppress overlapping crown predictions. This step can be slow.
-    treecrown_detections = multi_region_NMS(
-        treecrown_detections,
-        confidence_column="score",
-        intersection_method="IOS",
-        run_per_region_NMS=False,
-    )
-    # Save the crowns
-    tree_crowns_save_path.parent.mkdir(parents=True, exist_ok=True)
-    treecrown_detections.save(tree_crowns_save_path)
+        # Save the crowns
+        tree_crowns_save_path.parent.mkdir(parents=True, exist_ok=True)
+        treecrown_detections_gdf.to_file(tree_crowns_save_path)
 
 
 def parse_args():
@@ -173,6 +208,11 @@ def parse_args():
         help=f"The sigma in meters for a 2D Gaussian smoothing kernel. If unset, no smoothing occurs.",
     )
     parser.add_argument(
+        "--edge-suppression-meters",
+        type=float,
+        help="Suppress all trees with treetops within this distance of the edge of the raster.",
+    )
+    parser.add_argument(
         "--tree-top-detector-kwargs",
         type=str,
         default="{}",
@@ -203,6 +243,7 @@ if __name__ == "__main__":
         chip_stride=args.chip_stride,
         resolution=args.resolution,
         raster_blur_sigma=args.raster_blur_sigma,
+        edge_suppression_meters=args.edge_suppression_meters,
         tree_top_detector_kwargs=args.tree_top_detector_kwargs,
         crown_segmentation_kwargs=args.crown_segmentation_kwargs,
     )
