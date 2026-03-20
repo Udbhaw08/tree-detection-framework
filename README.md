@@ -117,7 +117,7 @@ mv checkpoints ../tree-detection-framework
 ```
 
 **SAM3:**
-Clone the SAM3 repository and install the dependencies
+Clone the SAM3 repository and install the dependencies. This can be done from any directory.
 ```
 git clone https://github.com/facebookresearch/sam3.git && cd sam3
 
