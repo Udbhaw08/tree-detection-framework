@@ -35,7 +35,7 @@ class SAM3Detector(Detector):
         device=DEFAULT_DEVICE,
         bpe_path=_SAM3_DEFAULT_BPE_PATH,
         text_prompt="tree",
-        confidence_threshold=0.3,
+        confidence_threshold=0.4,
         huggingface_token=None,
         postprocessors=None,
     ):
@@ -50,7 +50,7 @@ class SAM3Detector(Detector):
             text_prompt (str): Text prompt used to guide SAM3 segmentation.
                 Defaults to "tree".
             confidence_threshold (float): Minimum confidence score for keeping a
-                predicted mask. Defaults to 0.3.
+                predicted mask. Defaults to 0.4.
             huggingface_token (str, optional): HuggingFace API token for downloading
                 SAM3 model weights. Can also be set via the HF_TOKEN environment
                 variable. If neither is provided, assumes weights are already cached.
