@@ -236,7 +236,7 @@ def get_valid_raster_region(raster_file: PATH_TYPE) -> gpd.GeoDataFrame:
     with rasterio.open(raster_file) as src:
         image = src.read(1)
 
-    # Define the valid mas
+    # Define the valid mask
     mask = np.logical_and(np.isfinite(image), image != src.nodata)
 
     # The mask is the important part here, the input "image" is all zeros
