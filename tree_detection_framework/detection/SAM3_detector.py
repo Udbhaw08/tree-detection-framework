@@ -2,9 +2,6 @@ import logging
 import os
 from pathlib import Path
 
-import numpy as np
-import torch
-from PIL import Image
 from shapely.geometry import box
 
 from tree_detection_framework.constants import CHECKPOINTS_FOLDER, DEFAULT_DEVICE
